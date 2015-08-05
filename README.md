@@ -10,6 +10,5 @@ Architecture
 ------------
 
 
-USB Camera -> Convnet recognising quadcopters -> particle filter to get quadcopter state -> planning/control loop -> arduino proxy -> xn297 radio module -> quadcopters
-
+![System design diagram](docs/quad.png)
 
