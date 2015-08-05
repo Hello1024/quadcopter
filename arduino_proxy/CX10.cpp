@@ -19,6 +19,8 @@
 // pinout: http://imgur.com/a/unff4
 // XN297 datasheet: http://www.foxware-cn.com/UploadFile/20140808155134.pdf
 
+#include "CX10.h"
+
 //Spi Comm.pins with XN297/PPM, direct port access, do not change
 #define MOSI_pin  5             // MOSI-D5
 #define SCK_pin   4             // SCK-D4
@@ -63,7 +65,7 @@ static uint8_t txid[4]; // transmitter ID
 static uint8_t freq[4]; // frequency hopping table
 static uint8_t packet[PACKET_LENGTH];
 static uint32_t nextPacket;
-volatile uint16_t Servo_data[CHANNELS] = {0,};
+static uint16_t Servo_data[CHANNELS] = {0,};
 int ledPin = 13;
 
 CX10::CX10()
@@ -78,8 +80,6 @@ CX10::CX10()
     freq[2] = (txid[1] & 0x0F) + 0x2D;
     freq[3] = (txid[1] >> 4) + 0x40;
     pinMode(ledPin, OUTPUT);
-    //PPM input from transmitter port
-    pinMode(PPM_pin, INPUT);
     //RF module pins
     pinMode(MOSI_pin, OUTPUT);
     pinMode(SCK_pin, OUTPUT);
@@ -174,14 +174,14 @@ CX10::CX10()
 
 }
 
-CX10::bind(int slot) {
+void CX10::bind(int slot) {
     //Bind to Receiver
     bind_XN297();
 }
 
 
 //############ MAIN LOOP ##############
-CX10::loop() {
+void CX10::loop() {
     for (int chan = 0; chan < 4; chan++) {
         while(millis() < nextPacket) {} // wait
         nextPacket = millis()+PACKET_INTERVAL;
@@ -195,13 +195,13 @@ CX10::loop() {
     }
 }
 
-CX10::setAileron(int slot, int value){ Servo_data[AILERON] = value + 1000; }
-CX10::setElevator(int slot, int value){ Servo_data[ELEVATOR] = value + 1000; }
-CX10::setThrottle(int slot, int value){ Servo_data[THROTTLE] = value + 1000; }
-CX10::setRudder(int slot, int value){ Servo_data[RUDDER] = value + 1000; }
+void CX10::setAileron(int slot, int value){ Servo_data[AILERON] = value + 1000; }
+void CX10::setElevator(int slot, int value){ Servo_data[ELEVATOR] = value + 1000; }
+void CX10::setThrottle(int slot, int value){ Servo_data[THROTTLE] = value + 1000; }
+void CX10::setRudder(int slot, int value){ Servo_data[RUDDER] = value + 1000; }
   
 //BIND_TX
-void bind_XN297() {
+void CX10::bind_XN297() {
     byte counter=255;
     bool bound=false;
     while(!bound){
@@ -243,7 +243,7 @@ void bind_XN297() {
 //XN297 SPI routines
 //-------------------------------
 //-------------------------------
-void Write_Packet(uint8_t init){//24 bytes total per packet
+void CX10::Write_Packet(uint8_t init){//24 bytes total per packet
     uint8_t i;
     CS_off;
     _spi_write(0xa0); // Write TX payload
@@ -288,7 +288,7 @@ void Write_Packet(uint8_t init){//24 bytes total per packet
     CE_on; // transmit
 }
 
-void Read_Packet() {
+void CX10::Read_Packet() {
     uint8_t i;
     CS_off;
     _spi_write(0x61); // Read RX payload
@@ -298,7 +298,7 @@ void Read_Packet() {
     CS_on;
 }
 
-void _spi_write(uint8_t command) {
+void CX10::_spi_write(uint8_t command) {
     uint8_t n=8;
     SCK_off;
     MOSI_off;
@@ -315,7 +315,7 @@ void _spi_write(uint8_t command) {
     MOSI_on;
 }
 
-void _spi_write_address(uint8_t address, uint8_t data) {
+void CX10::_spi_write_address(uint8_t address, uint8_t data) {
     CS_off;
     _spi_write(address);
     NOP();
@@ -324,7 +324,7 @@ void _spi_write_address(uint8_t address, uint8_t data) {
 }
 
 // read one byte from MISO
-uint8_t _spi_read()
+uint8_t CX10::_spi_read()
 {
     uint8_t result=0;
     uint8_t i;
@@ -343,7 +343,7 @@ uint8_t _spi_read()
     return result;
 }
 
-uint8_t _spi_read_address(uint8_t address) {
+uint8_t CX10::_spi_read_address(uint8_t address) {
     uint8_t result;
     CS_off;
     _spi_write(address);
