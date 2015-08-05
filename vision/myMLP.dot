@@ -1,0 +1,35 @@
+digraph G {
+labelloc="t";
+label="MLP";
+node [shape = oval]; 
+n1[label="Node1\ninput = {Tensor[10x472x632]}\lmodule = nn.SpatialConvolution(10 -> 3, 1x1)" tooltip="[./vision.lua]:22"];
+n2[label="Node2\ninput = {Tensor[3x472x632]}" tooltip="[[C]]:-1"];
+n3[label="Node3\ninput = {Tensor[10x474x634]}\lmodule = nn.SpatialMaxPooling(3,3,1,1)" tooltip="[./vision.lua]:21"];
+n4[label="Node4\ninput = {Tensor[10x474x634]}\lmodule = nn.ReLU" tooltip="[./vision.lua]:21"];
+n5[label="Node5\ninput = {Tensor[10x476x636]}\lmodule = nn.SpatialConvolution(10 -> 10, 3x3)" tooltip="[./vision.lua]:21"];
+n6[label="Node6\ninput = {Tensor[10x478x638]}\lmodule = nn.SpatialMaxPooling(3,3,1,1)" tooltip="[./vision.lua]:20"];
+n7[label="Node7\ninput = {Tensor[10x478x638]}\lmodule = nn.ReLU" tooltip="[./vision.lua]:20"];
+n8[label="Node8\ninput = {Tensor[6x480x640]}\lmodule = nn.SpatialConvolution(6 -> 10, 3x3)" tooltip="[./vision.lua]:20"];
+n9[label="Node9\ninput = {Tensor[3x480x640],Tensor[3x480x640]}\lmodule = nn.JoinTable\lmapindex = {Node10,Node11}" tooltip="[./vision.lua]:19"];
+n10[label="Node10\ninput = {Tensor[3x480x640]}\lmodule = nn.Identity" tooltip="[./vision.lua]:17"];
+n11[label="Node11\ninput = {Tensor[3x480x640]}\lmodule = nn.Identity" tooltip="[./vision.lua]:18"];
+n12[label="Node12\ninput = {{Tensor[3x480x640],Tensor[3x480x640]}}\lselectindex = 1" tooltip="[[C]]:-1-1"];
+n13[label="Node13\ninput = {{Tensor[3x480x640],Tensor[3x480x640]}}\lselectindex = 2" tooltip="[[C]]:-1-2"];
+n14[label="Node14\ninput = {{Tensor[3x480x640],Tensor[3x480x640]}}\lnSplitOutputs = 2" tooltip="[[C]]:-1-mnode"];
+n15[label="Node15\ninput = {Tensor[3x480x640],Tensor[3x480x640]}" tooltip="[[C]]:-1"];
+n1 -> n2;
+n3 -> n1;
+n4 -> n3;
+n5 -> n4;
+n6 -> n5;
+n7 -> n6;
+n8 -> n7;
+n9 -> n8;
+n10 -> n9;
+n11 -> n9;
+n12 -> n10;
+n13 -> n11;
+n14 -> n12;
+n14 -> n13;
+n15 -> n14;
+}
