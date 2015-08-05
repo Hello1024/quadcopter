@@ -20,7 +20,6 @@
 // XN297 datasheet: http://www.foxware-cn.com/UploadFile/20140808155134.pdf
 
 //Spi Comm.pins with XN297/PPM, direct port access, do not change
-#define PPM_pin   2             // PPM in
 #define MOSI_pin  5             // MOSI-D5
 #define SCK_pin   4             // SCK-D4
 #define CS_pin    6             // CS-D6
@@ -46,8 +45,6 @@
 #define PACKET_LENGTH 19
 #define PACKET_INTERVAL 6 // interval of time between start of 2 packets, in ms
 
-#define PPM_MIN 1000
-#define PPM_MAX 2000
 
 // PPM stream settings
 #define CHANNELS 6
