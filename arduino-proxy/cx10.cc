@@ -65,10 +65,12 @@ static uint8_t aid[4]={0xFF,0xFF,0xFF,0xFF}; // aircraft ID
 static uint8_t txid[4]; // transmitter ID
 static uint8_t freq[4]; // frequency hopping table
 static uint8_t packet[PACKET_LENGTH];
+static uint32_t nextPacket;
 volatile uint16_t Servo_data[CHANNELS] = {0,};
 int ledPin = 13;
 
-void setup() {
+CX10::CX10()
+{
     randomSeed((analogRead(A0) & 0x1F) | (analogRead(A1) << 5));
     for(uint8_t i=0;i<4;i++) {
         txid[i] = random();
@@ -170,24 +172,22 @@ void setup() {
         ; // we have a problem ....
     _spi_write_address(0x20, 0x0e); // Power on, TX mode, 2 byte CRC
     MOSI_off;
-    delay(50);//50ms delay
+    delay(100);
+    nextPacket = millis();
 
-    //**********************************************************************
-    //PPM setup
-    attachInterrupt(PPM_pin - 2, read_ppm, CHANGE);
-    TCCR1A = 0;  //reset timer1
-    TCCR1B = 0;
-    TCCR1B |= (1 << CS11);  //set timer1 to increment every 1 us @ 8MHz, 0.5 us @16MHz
-    //
-    delay(50);
+}
+
+CX10::bind(int slot) {
     //Bind to Receiver
     bind_XN297();
 }
 
+
 //############ MAIN LOOP ##############
-void loop() {
+CX10::loop() {
     for (int chan = 0; chan < 4; chan++) {
-        uint32_t nextPacket = millis()+PACKET_INTERVAL;
+        while(millis() < nextPacket) {} // wait
+        nextPacket = millis()+PACKET_INTERVAL;
         CE_off;
         delayMicroseconds(5);
         _spi_write_address(0x20, 0x0e); // TX mode
@@ -195,10 +195,14 @@ void loop() {
         _spi_write_address(0x27, 0x70); // Clear interrupts
         _spi_write_address(0xe1, 0x00); // Flush TX
         Write_Packet(0x55); // servo_data timing is updated in interrupt (ISR routine for decoding PPM signal)
-        while(millis() < nextPacket) {} // wait
     }
 }
 
+CX10::setAileron(int slot, int value){ Servo_data[AILERON] = value + 1000; }
+CX10::setElevator(int slot, int value){ Servo_data[ELEVATOR] = value + 1000; }
+CX10::setThrottle(int slot, int value){ Servo_data[THROTTLE] = value + 1000; }
+CX10::setRudder(int slot, int value){ Servo_data[RUDDER] = value + 1000; }
+  
 //BIND_TX
 void bind_XN297() {
     byte counter=255;
@@ -349,33 +353,4 @@ uint8_t _spi_read_address(uint8_t address) {
     result = _spi_read();
     CS_on;
     return(result);
-}
-
-// ppm input interrupt
-void read_ppm()
-{
-    #if F_CPU == 16000000
-        #define PPM_SCALE 1L
-    #elif F_CPU == 8000000
-        #define PPM_SCALE 0L
-    #else
-        #error // 8 or 16MHz only !
-    #endif
-    static unsigned int pulse;
-    static unsigned long counterPPM;
-    static byte chan;
-    counterPPM = TCNT1;
-    TCNT1 = 0;
-    if(counterPPM < 510 << PPM_SCALE) {  //must be a pulse if less than 510us
-        pulse = counterPPM;
-    }
-    else if(counterPPM > 1910 << PPM_SCALE) {  //sync pulses over 1910us
-        chan = 0;
-    }
-    else{  //servo values between 510us and 2420us will end up here
-        if(chan < CHANNELS) {
-            Servo_data[chan]= constrain((counterPPM + pulse) >> PPM_SCALE, PPM_MIN, PPM_MAX);
-        }
-        chan++;
-    }
 }
