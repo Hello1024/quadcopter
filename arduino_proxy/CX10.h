@@ -19,6 +19,7 @@ public:
   void setElevator(int slot, int value);
   void setThrottle(int slot, int value);
   void setRudder(int slot, int value);
+  bool healthy;
 private:
   uint8_t _spi_read_address(uint8_t address);
   uint8_t _spi_read();

@@ -165,8 +165,8 @@ CX10::CX10()
     delay(100);//100ms delay
 
     //############ INIT2 ##############
-    if(_spi_read_address(0x10) != 0xCC) // reads 1 byte of Transmit address
-        ; // we have a problem ....
+    healthy = _spi_read_address(0x10) == 0xCC;
+    
     _spi_write_address(0x20, 0x0e); // Power on, TX mode, 2 byte CRC
     MOSI_off;
     delay(100);
