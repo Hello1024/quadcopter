@@ -28,7 +28,7 @@ void loop()
 {
   transmitter->loop();
   
-  if (Serial.available()) {
+  if (Serial.available() >= 8) {
     transmitter->setAileron(0, read16());
     transmitter->setElevator(0, read16());
     transmitter->setThrottle(0, read16());
