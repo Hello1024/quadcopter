@@ -1,3 +1,4 @@
+#include "SPI.h"
 #include "CX10.h"
 
 CX10* transmitter;
