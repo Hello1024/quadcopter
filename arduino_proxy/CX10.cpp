@@ -21,6 +21,35 @@
 
 #include "CX10.h"
 
+#ifdef RFDUINO
+
+#include "SPI.h"
+
+#define A0 0
+#define A1 1
+#define CS_pin    6
+#define CE_pin    2
+#define MOSI_pin  PIN_SPI_MOSI    // 5
+#define SCK_pin   PIN_SPI_SCK     // 4
+#define MISO_pin  PIN_SPI_MISO    // 3
+
+#define pinOn(pin)     NRF_GPIO->OUTSET = 1 << (pin)
+#define pinOff(pin)    NRF_GPIO->OUTCLR = 1 << (pin)
+
+#define CS_on     pinOn(CS_pin)
+#define CS_off    pinOff(CS_pin)
+#define CE_on     pinOn(CE_pin)
+#define CE_off    pinOff(CE_pin)
+#define MOSI_on   pinOn(MOSI_pin)
+#define MOSI_off  pinOff(MOSI_pin)
+#define SCK_on    pinOn(SCK_pin)
+#define SCK_off   pinOff(SCK_pin)
+
+#define cli()
+#define sei()
+
+#else
+
 //Spi Comm.pins with XN297/PPM, direct port access, do not change
 #define MOSI_pin  5             // MOSI-D5
 #define SCK_pin   4             // SCK-D4
@@ -40,6 +69,7 @@
 #define  MOSI_off PORTD &= 0xDF // PORTD5
 // spi input
 #define  MISO_on (PIND & 0x80)  // PORTD7
+#endif
 
 //
 #define NOP() __asm__ __volatile__("nop")
@@ -72,7 +102,11 @@ CX10::CX10()
 {
     randomSeed((analogRead(A0) & 0x1F) | (analogRead(A1) << 5));
     for(uint8_t i=0;i<4;i++) {
+#ifdef RFDUINO
+        txid[i] = random(256);
+#else
         txid[i] = random();
+#endif
     }
     txid[1] %= 0x30;
     freq[0] = (txid[0] & 0x0F) + 0x03;
@@ -83,9 +117,9 @@ CX10::CX10()
     //RF module pins
     pinMode(MOSI_pin, OUTPUT);
     pinMode(SCK_pin, OUTPUT);
+    pinMode(MISO_pin, INPUT);
     pinMode(CS_pin, OUTPUT);
     pinMode(CE_pin, OUTPUT);
-    pinMode(MISO_pin, INPUT);
     digitalWrite(ledPin, LOW);//start LED off
     CS_on;//start CS high
     CE_on;//start CE high
@@ -99,7 +133,10 @@ CX10::CX10()
     delay(100);
     CS_on;//start CS high
     delay(10);
-
+#ifdef RFDUINO
+    SPI.begin();
+    SPI.setFrequency(250);
+#endif
     //############ INIT1 ##############
     CS_off;
     _spi_write(0x3f); // Set Baseband parameters (debug registers) - BB_CAL
@@ -299,6 +336,9 @@ void CX10::Read_Packet() {
 }
 
 void CX10::_spi_write(uint8_t command) {
+#ifdef RFDUINO
+    SPI.transfer(command);
+#else
     uint8_t n=8;
     SCK_off;
     MOSI_off;
@@ -313,6 +353,7 @@ void CX10::_spi_write(uint8_t command) {
         command = command << 1;
     }
     MOSI_on;
+#endif
 }
 
 void CX10::_spi_write_address(uint8_t address, uint8_t data) {
@@ -326,6 +367,9 @@ void CX10::_spi_write_address(uint8_t address, uint8_t data) {
 // read one byte from MISO
 uint8_t CX10::_spi_read()
 {
+#ifdef RFDUINO
+    return SPI.transfer(0);
+#else
     uint8_t result=0;
     uint8_t i;
     MOSI_off;
@@ -341,6 +385,7 @@ uint8_t CX10::_spi_read()
         NOP();
     }
     return result;
+#endif
 }
 
 uint8_t CX10::_spi_read_address(uint8_t address) {
