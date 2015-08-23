@@ -47,13 +47,13 @@ MID = 500
 
 # ARM
 send(MIN, MID, MID, MID)
-time.sleep(1)
+time.sleep(.1)
 send(MAX, MID, MID, MID)
-time.sleep(1)
+time.sleep(.1)
 send(MIN, MID, MID, MID)
-time.sleep(1)
+time.sleep(.1)
 
-MAXT = MAX/4
+MAXT = MAX/2
 
 # Run
 for t in range(MAXT):
