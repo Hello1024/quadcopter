@@ -104,6 +104,10 @@ CX10::CX10()
         Craft *c = &craft_[n];
         memset(c->aid, 0xff, sizeof c->aid);
         memset(c->Servo_data, 0, sizeof c->Servo_data);
+        setThrottle(n, 0);
+        setAileron(n, 500);
+        setElevator(n, 500);
+        setRudder(n, 500);
         for(uint8_t i=0;i<4;i++) {
 #ifdef RFDUINO
             c->txid[i] = random(256);
