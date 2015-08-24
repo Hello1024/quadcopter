@@ -79,7 +79,6 @@
 
 
 // PPM stream settings
-#define CHANNELS 6
 enum chan_order{  // TAER -> Spektrum/FrSky chan order
     THROTTLE,
     AILERON,
@@ -90,16 +89,18 @@ enum chan_order{  // TAER -> Spektrum/FrSky chan order
 };
 
 //########## Variables #################
-static uint8_t aid[4]={0xFF,0xFF,0xFF,0xFF}; // aircraft ID
+//static uint8_t aid[4]={0xFF,0xFF,0xFF,0xFF}; // aircraft ID
 static uint8_t txid[4]; // transmitter ID
 static uint8_t freq[4]; // frequency hopping table
 static uint8_t packet[PACKET_LENGTH];
 static uint32_t nextPacket;
-static uint16_t Servo_data[CHANNELS] = {0,};
+//static uint16_t Servo_data[CHANNELS] = {0,};
 int ledPin = 13;
 
 CX10::CX10()
 {
+    memset(aid, 0xff, sizeof aid);
+    memset(Servo_data, 0, sizeof Servo_data);
     randomSeed((analogRead(A0) & 0x1F) | (analogRead(A1) << 5));
     for(uint8_t i=0;i<4;i++) {
 #ifdef RFDUINO
