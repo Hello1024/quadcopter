@@ -32,7 +32,7 @@ uint16_t read16()
 
 void loop()
 {  
-  transmitter->loop();
+  transmitter->loop(0);
 
   if (Serial.available() >= 8) {
     transmitter->setAileron(0, read16());

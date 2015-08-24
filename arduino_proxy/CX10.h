@@ -13,7 +13,7 @@
 class CX10 {
 public:
   CX10();
-  void loop();
+  void loop(int slot);
   void bind(int slot);
   void setAileron(int slot, int value);
   void setElevator(int slot, int value);
@@ -26,12 +26,16 @@ private:
   void _spi_write_address(uint8_t address, uint8_t data);
   void _spi_write(uint8_t command);
   void Read_Packet();
-  void Write_Packet(uint8_t init);
-  void bind_XN297();
-
-  static const size_t CHANNELS = 6;
-  uint8_t aid[4];
-  uint16_t Servo_data[CHANNELS];
+  void Write_Packet(int slot, uint8_t init);
+  void bind_XN297(int slot);
+  
+  static const size_t CRAFT = 4;
+  struct Craft {
+    
+    static const size_t CHANNELS = 6;
+    uint8_t aid[4];
+    uint16_t Servo_data[CHANNELS];
+  } craft_[CRAFT];
 };
 
 #endif
