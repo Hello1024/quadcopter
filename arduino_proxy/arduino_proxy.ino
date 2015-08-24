@@ -17,6 +17,17 @@ void setup()
   
   transmitter->bind(0);
   Serial.println("found a craft!");
+  transmitter->printTXID(0);
+  Serial.print('+');
+  transmitter->printAID(0);
+  Serial.print('\n');
+
+  transmitter->bind(1);
+  Serial.println("found a craft!");
+  transmitter->printTXID(1);
+  Serial.print('+');
+  transmitter->printAID(1);
+  Serial.print('\n');
 
   Serial.print('Z');  // sync
   

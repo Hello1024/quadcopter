@@ -19,6 +19,9 @@ public:
   void setElevator(int slot, int value);
   void setThrottle(int slot, int value);
   void setRudder(int slot, int value);
+  void printAID(int slot);
+  void printTXID(int slot);
+  
   bool healthy;
 private:
   uint8_t _spi_read_address(uint8_t address);
@@ -31,9 +34,11 @@ private:
   
   static const size_t CRAFT = 4;
   struct Craft {
-    
     static const size_t CHANNELS = 6;
-    uint8_t aid[4];
+
+    uint8_t txid[4];  // transmitter ID
+    uint8_t freq[4];  // frequency hopping table
+    uint8_t aid[4];   // aircraft ID
     uint16_t Servo_data[CHANNELS];
   } craft_[CRAFT];
 };

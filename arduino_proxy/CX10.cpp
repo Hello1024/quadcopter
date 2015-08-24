@@ -90,8 +90,8 @@ enum chan_order{  // TAER -> Spektrum/FrSky chan order
 
 //########## Variables #################
 //static uint8_t aid[4]={0xFF,0xFF,0xFF,0xFF}; // aircraft ID
-static uint8_t txid[4]; // transmitter ID
-static uint8_t freq[4]; // frequency hopping table
+//static uint8_t txid[4]; // transmitter ID
+//static uint8_t freq[4]; // frequency hopping table
 static uint8_t packet[PACKET_LENGTH];
 static uint32_t nextPacket;
 //static uint16_t Servo_data[CHANNELS] = {0,};
@@ -99,24 +99,24 @@ int ledPin = 13;
 
 CX10::CX10()
 {
+    randomSeed((analogRead(A0) & 0x1F) | (analogRead(A1) << 5));
     for (int n = 0; n < CRAFT; ++n) {
         Craft *c = &craft_[n];
         memset(c->aid, 0xff, sizeof c->aid);
         memset(c->Servo_data, 0, sizeof c->Servo_data);
-    }
-    randomSeed((analogRead(A0) & 0x1F) | (analogRead(A1) << 5));
-    for(uint8_t i=0;i<4;i++) {
+        for(uint8_t i=0;i<4;i++) {
 #ifdef RFDUINO
-        txid[i] = random(256);
+            c->txid[i] = random(256);
 #else
-        txid[i] = random();
+            c->txid[i] = random();
 #endif
+        }
+        c->txid[1] %= 0x30;
+        c->freq[0] = (c->txid[0] & 0x0F) + 0x03;
+        c->freq[1] = (c->txid[0] >> 4) + 0x16;
+        c->freq[2] = (c->txid[1] & 0x0F) + 0x2D;
+        c->freq[3] = (c->txid[1] >> 4) + 0x40;
     }
-    txid[1] %= 0x30;
-    freq[0] = (txid[0] & 0x0F) + 0x03;
-    freq[1] = (txid[0] >> 4) + 0x16;
-    freq[2] = (txid[1] & 0x0F) + 0x2D;
-    freq[3] = (txid[1] >> 4) + 0x40;
     pinMode(ledPin, OUTPUT);
     //RF module pins
     pinMode(MOSI_pin, OUTPUT);
@@ -212,7 +212,25 @@ CX10::CX10()
     MOSI_off;
     delay(100);
     nextPacket = millis();
+}
 
+static void print4(const uint8_t d[4]) {
+    Serial.print(d[0], HEX);
+    Serial.print(':');
+    Serial.print(d[1], HEX);
+    Serial.print(':');
+    Serial.print(d[2], HEX);
+    Serial.print(':');
+    Serial.print(d[3], HEX);
+
+}
+
+void CX10::printAID(int slot) {
+    print4(craft_[slot].aid);
+}
+
+void CX10::printTXID(int slot) {
+    print4(craft_[slot].txid);
 }
 
 void CX10::bind(int slot) {
@@ -229,7 +247,7 @@ void CX10::loop(int slot) {
         CE_off;
         delayMicroseconds(5);
         _spi_write_address(0x20, 0x0e); // TX mode
-        _spi_write_address(0x25, freq[chan]); // Set RF chan
+        _spi_write_address(0x25, craft_[slot].freq[chan]); // Set RF chan
         _spi_write_address(0x27, 0x70); // Clear interrupts
         _spi_write_address(0xe1, 0x00); // Flush TX
         Write_Packet(slot, 0x55); // servo_data timing is updated in interrupt (ISR routine for decoding PPM signal)
@@ -293,10 +311,10 @@ void CX10::Write_Packet(int slot, uint8_t init){//24 bytes total per packet
     CS_off;
     _spi_write(0xa0); // Write TX payload
     _spi_write(init); // packet type: 0xaa or 0x55 aka bind packet or data packet)
-    _spi_write(txid[0]); 
-    _spi_write(txid[1]); 
-    _spi_write(txid[2]);
-    _spi_write(txid[3]);
+    _spi_write(c->txid[0]); 
+    _spi_write(c->txid[1]); 
+    _spi_write(c->txid[2]);
+    _spi_write(c->txid[3]);
     _spi_write(c->aid[0]); // Aircraft ID
     _spi_write(c->aid[1]);
     _spi_write(c->aid[2]);
