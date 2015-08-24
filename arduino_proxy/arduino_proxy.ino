@@ -44,12 +44,24 @@ uint16_t read16()
 void loop()
 {  
   transmitter->loop(0);
+  transmitter->loop(1);
 
   if (Serial.available() >= 8) {
-    transmitter->setAileron(0, read16());
-    transmitter->setElevator(0, read16());
-    transmitter->setThrottle(0, read16());
-    transmitter->setRudder(0, read16());
+    uint16_t a = read16();
+    uint16_t e = read16();
+    uint16_t t = read16();
+    uint16_t r = read16();
+
+    transmitter->setAileron(0, a);
+    transmitter->setElevator(0, e);
+    transmitter->setThrottle(0, t);
+    transmitter->setRudder(0, r);
+
+    transmitter->setAileron(1, a);
+    transmitter->setElevator(1, e);
+    transmitter->setThrottle(1, t);
+    transmitter->setRudder(1, r);
+
     Serial.print('+');  // ack
   }
 };

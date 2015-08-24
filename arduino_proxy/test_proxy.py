@@ -53,7 +53,7 @@ time.sleep(.1)
 send(MIN, MID, MID, MID)
 time.sleep(.1)
 
-MAXT = MAX/4
+MAXT = MAX/2
 
 # Run
 for t in range(MAXT):
