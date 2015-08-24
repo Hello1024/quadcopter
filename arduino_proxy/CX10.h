@@ -29,7 +29,7 @@ private:
   void Write_Packet(uint8_t init);
   void bind_XN297();
 
-#define CHANNELS 6
+  static const size_t CHANNELS = 6;
   uint8_t aid[4];
   uint16_t Servo_data[CHANNELS];
 };
