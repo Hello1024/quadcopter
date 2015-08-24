@@ -21,8 +21,8 @@ public:
   void setRudder(int slot, int value);
   void printAID(int slot);
   void printTXID(int slot);
+  bool isHealthy() const { return healthy_; }
   
-  bool healthy;
 private:
   uint8_t _spi_read_address(uint8_t address);
   uint8_t _spi_read();
@@ -32,6 +32,8 @@ private:
   void Write_Packet(int slot, uint8_t init);
   void bind_XN297(int slot);
   
+  bool healthy_;
+
   static const size_t CRAFT = 4;
   struct Craft {
     static const size_t CHANNELS = 6;

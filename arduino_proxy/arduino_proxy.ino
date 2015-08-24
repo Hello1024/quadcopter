@@ -10,7 +10,7 @@ void setup()
   delay(1000);
     Serial.println("Arduino alive again");
   transmitter = new CX10();
-  if (transmitter->healthy)
+  if (transmitter->isHealthy())
     Serial.println("XN297 alive");
   else
     Serial.println("XN297 is dead");

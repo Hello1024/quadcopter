@@ -97,8 +97,7 @@ static uint32_t nextPacket;
 //static uint16_t Servo_data[CHANNELS] = {0,};
 int ledPin = 13;
 
-CX10::CX10()
-{
+CX10::CX10() {
     randomSeed((analogRead(A0) & 0x1F) | (analogRead(A1) << 5));
     for (int n = 0; n < CRAFT; ++n) {
         Craft *c = &craft_[n];
@@ -210,7 +209,7 @@ CX10::CX10()
     delay(100);//100ms delay
 
     //############ INIT2 ##############
-    healthy = _spi_read_address(0x10) == 0xCC;
+    healthy_ = _spi_read_address(0x10) == 0xCC;
     
     _spi_write_address(0x20, 0x0e); // Power on, TX mode, 2 byte CRC
     MOSI_off;
@@ -308,7 +307,7 @@ void CX10::bind_XN297(int slot) {
 //XN297 SPI routines
 //-------------------------------
 //-------------------------------
-void CX10::Write_Packet(int slot, uint8_t init){//24 bytes total per packet
+void CX10::Write_Packet(int slot, uint8_t init) { // 24 bytes total per packet (FIXME: wrong?)
     Craft *c = &craft_[slot];
     uint8_t i;
 
@@ -395,8 +394,7 @@ void CX10::_spi_write_address(uint8_t address, uint8_t data) {
 }
 
 // read one byte from MISO
-uint8_t CX10::_spi_read()
-{
+uint8_t CX10::_spi_read() {
 #ifdef RFDUINO
     return SPI.transfer(0);
 #else
