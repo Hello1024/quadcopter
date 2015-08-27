@@ -79,7 +79,6 @@
 
 
 // PPM stream settings
-#define CHANNELS 6
 enum chan_order{  // TAER -> Spektrum/FrSky chan order
     THROTTLE,
     AILERON,
@@ -90,29 +89,33 @@ enum chan_order{  // TAER -> Spektrum/FrSky chan order
 };
 
 //########## Variables #################
-static uint8_t aid[4]={0xFF,0xFF,0xFF,0xFF}; // aircraft ID
-static uint8_t txid[4]; // transmitter ID
-static uint8_t freq[4]; // frequency hopping table
 static uint8_t packet[PACKET_LENGTH];
 static uint32_t nextPacket;
-static uint16_t Servo_data[CHANNELS] = {0,};
 int ledPin = 13;
 
-CX10::CX10()
-{
+CX10::CX10() {
     randomSeed((analogRead(A0) & 0x1F) | (analogRead(A1) << 5));
-    for(uint8_t i=0;i<4;i++) {
+    for (int n = 0; n < CRAFT; ++n) {
+        Craft *c = &craft_[n];
+        memset(c->aid, 0xff, sizeof c->aid);
+        memset(c->Servo_data, 0, sizeof c->Servo_data);
+        setThrottle(n, 0);
+        setAileron(n, 500);
+        setElevator(n, 500);
+        setRudder(n, 500);
+        for(uint8_t i=0;i<4;i++) {
 #ifdef RFDUINO
-        txid[i] = random(256);
+            c->txid[i] = random(256);
 #else
-        txid[i] = random();
+            c->txid[i] = random();
 #endif
+        }
+        c->txid[1] %= 0x30;
+        c->freq[0] = (c->txid[0] & 0x0F) + 0x03;
+        c->freq[1] = (c->txid[0] >> 4) + 0x16;
+        c->freq[2] = (c->txid[1] & 0x0F) + 0x2D;
+        c->freq[3] = (c->txid[1] >> 4) + 0x40;
     }
-    txid[1] %= 0x30;
-    freq[0] = (txid[0] & 0x0F) + 0x03;
-    freq[1] = (txid[0] >> 4) + 0x16;
-    freq[2] = (txid[1] & 0x0F) + 0x2D;
-    freq[3] = (txid[1] >> 4) + 0x40;
     pinMode(ledPin, OUTPUT);
     //RF module pins
     pinMode(MOSI_pin, OUTPUT);
@@ -202,45 +205,65 @@ CX10::CX10()
     delay(100);//100ms delay
 
     //############ INIT2 ##############
-    healthy = _spi_read_address(0x10) == 0xCC;
+    healthy_ = _spi_read_address(0x10) == 0xCC;
     
     _spi_write_address(0x20, 0x0e); // Power on, TX mode, 2 byte CRC
     MOSI_off;
     delay(100);
     nextPacket = millis();
+}
 
+static void print4(const uint8_t d[4]) {
+    Serial.print(d[0], HEX);
+    Serial.print(':');
+    Serial.print(d[1], HEX);
+    Serial.print(':');
+    Serial.print(d[2], HEX);
+    Serial.print(':');
+    Serial.print(d[3], HEX);
+
+}
+
+void CX10::printAID(int slot) {
+    print4(craft_[slot].aid);
+}
+
+void CX10::printTXID(int slot) {
+    print4(craft_[slot].txid);
 }
 
 void CX10::bind(int slot) {
     //Bind to Receiver
-    bind_XN297();
+    bind_XN297(slot);
 }
 
 
 //############ MAIN LOOP ##############
-void CX10::loop() {
+void CX10::loop(int slot) {
     for (int chan = 0; chan < 4; chan++) {
         while(millis() < nextPacket) {} // wait
         nextPacket = millis()+PACKET_INTERVAL;
         CE_off;
         delayMicroseconds(5);
         _spi_write_address(0x20, 0x0e); // TX mode
-        _spi_write_address(0x25, freq[chan]); // Set RF chan
+        _spi_write_address(0x25, craft_[slot].freq[chan]); // Set RF chan
         _spi_write_address(0x27, 0x70); // Clear interrupts
         _spi_write_address(0xe1, 0x00); // Flush TX
-        Write_Packet(0x55); // servo_data timing is updated in interrupt (ISR routine for decoding PPM signal)
+        Write_Packet(slot, 0x55); // servo_data timing is updated in interrupt (ISR routine for decoding PPM signal)
     }
 }
 
-void CX10::setAileron(int slot, int value){ Servo_data[AILERON] = value + 1000; }
-void CX10::setElevator(int slot, int value){ Servo_data[ELEVATOR] = value + 1000; }
-void CX10::setThrottle(int slot, int value){ Servo_data[THROTTLE] = value + 1000; }
-void CX10::setRudder(int slot, int value){ Servo_data[RUDDER] = value + 1000; }
+void CX10::setAileron(int slot, int value){ craft_[slot].Servo_data[AILERON] = value + 1000; }
+void CX10::setElevator(int slot, int value){ craft_[slot].Servo_data[ELEVATOR] = value + 1000; }
+void CX10::setThrottle(int slot, int value){ craft_[slot].Servo_data[THROTTLE] = value + 1000; }
+void CX10::setRudder(int slot, int value){ craft_[slot].Servo_data[RUDDER] = value + 1000; }
   
 //BIND_TX
-void CX10::bind_XN297() {
+void CX10::bind_XN297(int slot) {
     byte counter=255;
     bool bound=false;
+    Craft *c = &craft_[slot];
+
     while(!bound){
         CE_off;
         delayMicroseconds(5);
@@ -248,7 +271,7 @@ void CX10::bind_XN297() {
         _spi_write_address(0x25, 0x02); // set RF channel 2
         _spi_write_address(0x27, 0x70); // Clear interrupts
         _spi_write_address(0xe1, 0x00); // Flush TX
-        Write_Packet(0xaa); // send bind packet
+        Write_Packet(slot, 0xaa); // send bind packet
         delay(2);
         _spi_write_address(0x27, 0x70); // Clear interrupts
         _spi_write_address(0x25, 0x02); // Set RF channel
@@ -259,10 +282,10 @@ void CX10::bind_XN297() {
             if(_spi_read_address(0x07) == 0x40) { // data received
                 CE_off;
                 Read_Packet();
-                aid[0] = packet[5];
-                aid[1] = packet[6];
-                aid[2] = packet[7];
-                aid[3] = packet[8];
+                c->aid[0] = packet[5];
+                c->aid[1] = packet[6];
+                c->aid[2] = packet[7];
+                c->aid[3] = packet[8];
                 if(packet[9]==1) {
                     bound=true;
                     break;
@@ -280,40 +303,42 @@ void CX10::bind_XN297() {
 //XN297 SPI routines
 //-------------------------------
 //-------------------------------
-void CX10::Write_Packet(uint8_t init){//24 bytes total per packet
+void CX10::Write_Packet(int slot, uint8_t init) { // 24 bytes total per packet (FIXME: wrong?)
+    Craft *c = &craft_[slot];
     uint8_t i;
+
     CS_off;
     _spi_write(0xa0); // Write TX payload
     _spi_write(init); // packet type: 0xaa or 0x55 aka bind packet or data packet)
-    _spi_write(txid[0]); 
-    _spi_write(txid[1]); 
-    _spi_write(txid[2]);
-    _spi_write(txid[3]);
-    _spi_write(aid[0]); // Aircraft ID
-    _spi_write(aid[1]);
-    _spi_write(aid[2]);
-    _spi_write(aid[3]);
+    _spi_write(c->txid[0]); 
+    _spi_write(c->txid[1]); 
+    _spi_write(c->txid[2]);
+    _spi_write(c->txid[3]);
+    _spi_write(c->aid[0]); // Aircraft ID
+    _spi_write(c->aid[1]);
+    _spi_write(c->aid[2]);
+    _spi_write(c->aid[3]);
     // channels data
-    if (Servo_data[5] > 1500)
-        bitSet(Servo_data[3], 12);// Set flip mode based on chan6 input
+    if (c->Servo_data[5] > 1500)
+        bitSet(c->Servo_data[3], 12);// Set flip mode based on chan6 input
     cli(); // disable interrupts
-    packet[0]=lowByte(Servo_data[AILERON]);//low byte of servo timing(1000-2000us)
-    packet[1]=highByte(Servo_data[AILERON]);//high byte of servo timing(1000-2000us)
-    packet[2]=lowByte(Servo_data[ELEVATOR]);
-    packet[3]=highByte(Servo_data[ELEVATOR]);
-    packet[4]=lowByte(Servo_data[THROTTLE]);
-    packet[5]=highByte(Servo_data[THROTTLE]);
-    packet[6]=lowByte(Servo_data[RUDDER]);
-    packet[7]=highByte(Servo_data[RUDDER]);
+    packet[0]=lowByte(c->Servo_data[AILERON]);//low byte of servo timing(1000-2000us)
+    packet[1]=highByte(c->Servo_data[AILERON]);//high byte of servo timing(1000-2000us)
+    packet[2]=lowByte(c->Servo_data[ELEVATOR]);
+    packet[3]=highByte(c->Servo_data[ELEVATOR]);
+    packet[4]=lowByte(c->Servo_data[THROTTLE]);
+    packet[5]=highByte(c->Servo_data[THROTTLE]);
+    packet[6]=lowByte(c->Servo_data[RUDDER]);
+    packet[7]=highByte(c->Servo_data[RUDDER]);
     sei(); // enable interrupts
     for(i=0;i<4;i++){
         _spi_write(packet[0+2*i]);
         _spi_write(packet[1+2*i]);
     }
     // Set mode based on chan5 input
-    if (Servo_data[4] > 1800)
+    if (c->Servo_data[4] > 1800)
         i = 0x02;// mode 3
-    else if (Servo_data[4] > 1300)
+    else if (c->Servo_data[4] > 1300)
         i = 0x01;// mode 2
     else
         i= 0x00;// mode 1
@@ -365,8 +390,7 @@ void CX10::_spi_write_address(uint8_t address, uint8_t data) {
 }
 
 // read one byte from MISO
-uint8_t CX10::_spi_read()
-{
+uint8_t CX10::_spi_read() {
 #ifdef RFDUINO
     return SPI.transfer(0);
 #else

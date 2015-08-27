@@ -6,8 +6,8 @@ ser = serial.Serial('/dev/cu.usbserial-DC008KDX', 115200)
 
 while True:
     x = ser.read()
-#    sys.stdout.write(x)
-    print ord(x), x
+    sys.stdout.write(x)
+#    print ord(x), x
     if x == 'Z':
         break
 
