@@ -45,15 +45,20 @@ MAX = 1000
 MIN = 0
 MID = 500
 
-# ARM
-send(MIN, MID, MID, MID)
-time.sleep(.1)
-send(MAX, MID, MID, MID)
-time.sleep(.1)
-send(MIN, MID, MID, MID)
-time.sleep(.1)
+# ARM (Don't - now auto-armed by the proxy)
+#send(MIN, MID, MID, MID)
+#time.sleep(.1)
+#send(MAX, MID, MID, MID)
+#time.sleep(.1)
+#send(MIN, MID, MID, MID)
+#time.sleep(.1)
 
-MAXT = MAX/2
+# Wait for first craft to arm
+t = time.time() + 2
+while time.time() < t:
+    echo()
+
+MAXT = MAX/4
 
 # Run
 for t in range(MAXT):
