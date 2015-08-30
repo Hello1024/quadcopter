@@ -23,9 +23,15 @@ void setup()
 
   for ( ; ; ) {
     transmitter->loop();
-    if (transmitter->boundCraft() > 2)
+    // I cannot reliably bind more than 2.
+    // If its a CX-10A and a CX-10 it appears the 10A has to be switched on first.
+    if (transmitter->boundCraft() > 1)
       break;
   }
+  transmitter->stopBinding();
+  for (uint32_t t = millis() + 3000; t > millis(); )
+    transmitter->loop();
+      
   Serial.print('Z');  // sync
   memset(armed, 0, sizeof armed);  
 }
@@ -60,6 +66,7 @@ void loop()
   }
 
   for (int s = 0; s < transmitter->boundCraft(); ++s) {
+    // Arming is not needed, it turns out. Leave code in for now, but disabled.
     armed[s].armed = true;
     if (armed[s].armed)
       continue;

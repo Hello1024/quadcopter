@@ -76,7 +76,7 @@
 
 #define PACKET_LENGTH 19
 #define PACKET_INTERVAL 6 // interval of time between start of 2 packets, in ms
-#define BIND_INTERVAL   1001
+#define BIND_INTERVAL   100000
 
 
 // PPM stream settings
@@ -211,7 +211,8 @@ CX10::CX10() {
     _spi_write_address(0x20, 0x0e); // Power on, TX mode, 2 byte CRC
     MOSI_off;
     delay(100);
-    nextBind_ = millis();
+    bindAllowed_ = true;
+    nextBind_ = micros();
     nextSlot_ = 0;
 }
 
@@ -223,7 +224,6 @@ static void print4(const uint8_t d[4]) {
     Serial.print(d[2], HEX);
     Serial.print(':');
     Serial.print(d[3], HEX);
-
 }
 
 void CX10::printAID(int slot) const {
@@ -240,6 +240,7 @@ void CX10::loop() {
         Craft *c = &craft_[slot];
         if(c->nextPacket != 0 && micros() >= c->nextPacket) {
             c->nextPacket += PACKET_INTERVAL * 1000;
+            //c->nextPacket = micros() + PACKET_INTERVAL * 1000;
             CE_off;
             delayMicroseconds(5);
             _spi_write_address(0x20, 0x0e); // TX mode
@@ -251,10 +252,10 @@ void CX10::loop() {
                 c->chan = 0;
         }
     }
-    if (nextSlot_ < CRAFT && millis() >= nextBind_) {
+    if (bindAllowed_ && nextSlot_ < CRAFT && micros() >= nextBind_) {
         if (bind_XN297(nextSlot_))
             ++nextSlot_;
-        nextBind_ = millis() + BIND_INTERVAL;
+        nextBind_ = micros() + BIND_INTERVAL;
     }
 }
 
@@ -270,6 +271,10 @@ bool CX10::bind_XN297(int slot) {
     Craft *c = &craft_[slot];
 
     while(!bound && counter > 240){
+        uint32_t t = micros();
+        for (int s = 0; s < nextSlot_; ++s)
+            if (t >= craft_[s].nextPacket + PACKET_INTERVAL * 100)
+                return false;                
         CE_off;
         delayMicroseconds(5);
         _spi_write_address(0x20, 0x0e); // Power on, TX mode, 2 byte CRC
@@ -301,14 +306,17 @@ bool CX10::bind_XN297(int slot) {
         digitalWrite(ledPin, bitRead(--counter,3)); //check for 0bxxxx1xxx to flash LED
     }
     if (bound) {
-        digitalWrite(ledPin, HIGH);//LED on at end of bind
-        c->nextPacket = micros() + PACKET_INTERVAL * 1000 - 200;
+        c->nextPacket = micros() + PACKET_INTERVAL * 1000;
         c->chan = 0;
-        Serial.println("found a craft!");
-        printTXID(slot);
-        Serial.print('+');
-        printAID(slot);
-        Serial.println("");
+        digitalWrite(ledPin, HIGH);//LED on at end of bind
+//        Serial.println("found a craft!");
+//        printTXID(slot);
+//        Serial.print('+');
+//        printAID(slot);
+//        Serial.println("");
+        Serial.print("X");
+    } else {
+        c->nextPacket = 0;
     }
     return bound;
 }

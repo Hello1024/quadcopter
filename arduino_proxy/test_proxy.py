@@ -7,6 +7,7 @@ ser = serial.Serial('/dev/cu.usbserial-DC008KDX', 115200)
 while True:
     x = ser.read()
     sys.stdout.write(x)
+    sys.stdout.flush()
 #    print ord(x), x
     if x == 'Z':
         break
@@ -33,6 +34,7 @@ def echo():
     while ser.inWaiting():
         t = ser.read()
         sys.stdout.write(t)
+        sys.stdout.flush()
 
 def ack():
     while True:

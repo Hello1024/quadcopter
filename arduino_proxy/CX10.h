@@ -22,6 +22,7 @@ public:
   void printTXID(int slot) const;
   bool isHealthy() const { return healthy_; }
   uint8_t boundCraft() const { return nextSlot_; }
+  void stopBinding() { bindAllowed_ = false; }
   
   static const size_t CRAFT = 4;
 
@@ -35,6 +36,7 @@ private:
   bool bind_XN297(int slot);
   
   bool healthy_;
+  bool bindAllowed_;
   uint32_t nextBind_;
   uint8_t nextSlot_;
 
