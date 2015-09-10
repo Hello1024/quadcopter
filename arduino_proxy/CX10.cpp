@@ -76,6 +76,7 @@
 
 #define PACKET_LENGTH 19
 #define PACKET_INTERVAL 6 // interval of time between start of 2 packets, in ms
+#define BIND_INTERVAL   100000
 
 
 // PPM stream settings
@@ -90,13 +91,13 @@ enum chan_order{  // TAER -> Spektrum/FrSky chan order
 
 //########## Variables #################
 static uint8_t packet[PACKET_LENGTH];
-static uint32_t nextPacket;
 int ledPin = 13;
 
 CX10::CX10() {
     randomSeed((analogRead(A0) & 0x1F) | (analogRead(A1) << 5));
     for (int n = 0; n < CRAFT; ++n) {
         Craft *c = &craft_[n];
+        c->nextPacket = 0;
         memset(c->aid, 0xff, sizeof c->aid);
         memset(c->Servo_data, 0, sizeof c->Servo_data);
         setThrottle(n, 0);
@@ -210,7 +211,9 @@ CX10::CX10() {
     _spi_write_address(0x20, 0x0e); // Power on, TX mode, 2 byte CRC
     MOSI_off;
     delay(100);
-    nextPacket = millis();
+    bindAllowed_ = true;
+    nextBind_ = micros();
+    nextSlot_ = 0;
 }
 
 static void print4(const uint8_t d[4]) {
@@ -221,35 +224,38 @@ static void print4(const uint8_t d[4]) {
     Serial.print(d[2], HEX);
     Serial.print(':');
     Serial.print(d[3], HEX);
-
 }
 
-void CX10::printAID(int slot) {
+void CX10::printAID(int slot) const {
     print4(craft_[slot].aid);
 }
 
-void CX10::printTXID(int slot) {
+void CX10::printTXID(int slot) const {
     print4(craft_[slot].txid);
 }
 
-void CX10::bind(int slot) {
-    //Bind to Receiver
-    bind_XN297(slot);
-}
-
-
 //############ MAIN LOOP ##############
-void CX10::loop(int slot) {
-    for (int chan = 0; chan < 4; chan++) {
-        while(millis() < nextPacket) {} // wait
-        nextPacket = millis()+PACKET_INTERVAL;
-        CE_off;
-        delayMicroseconds(5);
-        _spi_write_address(0x20, 0x0e); // TX mode
-        _spi_write_address(0x25, craft_[slot].freq[chan]); // Set RF chan
-        _spi_write_address(0x27, 0x70); // Clear interrupts
-        _spi_write_address(0xe1, 0x00); // Flush TX
-        Write_Packet(slot, 0x55); // servo_data timing is updated in interrupt (ISR routine for decoding PPM signal)
+void CX10::loop() {
+    for (int slot = 0; slot < CRAFT; ++slot) {
+        Craft *c = &craft_[slot];
+        if(c->nextPacket != 0 && micros() >= c->nextPacket) {
+            c->nextPacket += PACKET_INTERVAL * 1000;
+            //c->nextPacket = micros() + PACKET_INTERVAL * 1000;
+            CE_off;
+            delayMicroseconds(5);
+            _spi_write_address(0x20, 0x0e); // TX mode
+            _spi_write_address(0x25, c->freq[c->chan]); // Set RF chan
+            _spi_write_address(0x27, 0x70); // Clear interrupts
+            _spi_write_address(0xe1, 0x00); // Flush TX
+            Write_Packet(slot, 0x55); // servo_data timing is updated in interrupt (ISR routine for decoding PPM signal)
+            if (++c->chan == 4)
+                c->chan = 0;
+        }
+    }
+    if (bindAllowed_ && nextSlot_ < CRAFT && micros() >= nextBind_) {
+        if (bind_XN297(nextSlot_))
+            ++nextSlot_;
+        nextBind_ = micros() + BIND_INTERVAL;
     }
 }
 
@@ -259,12 +265,16 @@ void CX10::setThrottle(int slot, int value){ craft_[slot].Servo_data[THROTTLE] =
 void CX10::setRudder(int slot, int value){ craft_[slot].Servo_data[RUDDER] = value + 1000; }
   
 //BIND_TX
-void CX10::bind_XN297(int slot) {
+bool CX10::bind_XN297(int slot) {
     byte counter=255;
     bool bound=false;
     Craft *c = &craft_[slot];
 
-    while(!bound){
+    while(!bound && counter > 240){
+        uint32_t t = micros();
+        for (int s = 0; s < nextSlot_; ++s)
+            if (t >= craft_[s].nextPacket + PACKET_INTERVAL * 100)
+                return false;                
         CE_off;
         delayMicroseconds(5);
         _spi_write_address(0x20, 0x0e); // Power on, TX mode, 2 byte CRC
@@ -295,7 +305,20 @@ void CX10::bind_XN297(int slot) {
         CE_off;
         digitalWrite(ledPin, bitRead(--counter,3)); //check for 0bxxxx1xxx to flash LED
     }
-    digitalWrite(ledPin, HIGH);//LED on at end of bind
+    if (bound) {
+        c->nextPacket = micros() + PACKET_INTERVAL * 1000;
+        c->chan = 0;
+        digitalWrite(ledPin, HIGH);//LED on at end of bind
+//        Serial.println("found a craft!");
+//        printTXID(slot);
+//        Serial.print('+');
+//        printAID(slot);
+//        Serial.println("");
+        Serial.print("X");
+    } else {
+        c->nextPacket = 0;
+    }
+    return bound;
 }
 
 //-------------------------------

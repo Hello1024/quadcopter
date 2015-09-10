@@ -3,6 +3,12 @@
 
 CX10* transmitter;
 
+struct {
+  bool armed;
+  byte state;
+  uint32_t next;
+} armed[CX10::CRAFT];
+
 void setup()                   
 {
   Serial.begin(115200);
@@ -14,24 +20,20 @@ void setup()
     Serial.println("XN297 alive");
   else
     Serial.println("XN297 is dead");
-  
-  transmitter->bind(0);
-  Serial.println("found a craft!");
-  transmitter->printTXID(0);
-  Serial.print('+');
-  transmitter->printAID(0);
-  Serial.print('\n');
 
-  transmitter->bind(1);
-  Serial.println("found a craft!");
-  transmitter->printTXID(1);
-  Serial.print('+');
-  transmitter->printAID(1);
-  Serial.print('\n');
-
+  for ( ; ; ) {
+    transmitter->loop();
+    // I cannot reliably bind more than 2.
+    // If its a CX-10A and a CX-10 it appears the 10A has to be switched on first.
+    if (transmitter->boundCraft() > 1)
+      break;
+  }
+  transmitter->stopBinding();
+  for (uint32_t t = millis() + 3000; t > millis(); )
+    transmitter->loop();
+      
   Serial.print('Z');  // sync
-  
-  // TODO:  auto-arm  (throttle from 0 -> 1000 -> 0 again)
+  memset(armed, 0, sizeof armed);  
 }
 
 uint16_t read16()
@@ -42,26 +44,58 @@ uint16_t read16()
 }
 
 void loop()
-{  
-  transmitter->loop(0);
-  transmitter->loop(1);
-
+{
+  transmitter->loop();
+  
   if (Serial.available() >= 8) {
     uint16_t a = read16();
     uint16_t e = read16();
     uint16_t t = read16();
     uint16_t r = read16();
 
-    transmitter->setAileron(0, a);
-    transmitter->setElevator(0, e);
-    transmitter->setThrottle(0, t);
-    transmitter->setRudder(0, r);
-
-    transmitter->setAileron(1, a);
-    transmitter->setElevator(1, e);
-    transmitter->setThrottle(1, t);
-    transmitter->setRudder(1, r);
+    for (int s = 0; s < transmitter->boundCraft(); ++s) {
+      if (armed[s].armed) {
+        transmitter->setAileron(s, a);
+        transmitter->setElevator(s, e);
+        transmitter->setThrottle(s, t);
+        transmitter->setRudder(s, r);
+      }
+    }
 
     Serial.print('+');  // ack
   }
-};
+
+  for (int s = 0; s < transmitter->boundCraft(); ++s) {
+    // Arming is not needed, it turns out. Leave code in for now, but disabled.
+    armed[s].armed = true;
+    if (armed[s].armed)
+      continue;
+    if (armed[s].state == 0) {
+      transmitter->setThrottle(s, 0);
+      armed[s].state++;
+      armed[s].next = millis() + 3000;
+    } else if (millis() >= armed[s].next) {
+      Serial.print(millis());
+      Serial.print(' ');
+      Serial.print(armed[s].state);
+      Serial.print(' ');
+      Serial.print(s);
+      Serial.println("");
+      if (armed[s].state == 1) {
+        transmitter->setThrottle(s, 1000);
+        armed[s].state++;
+        armed[s].next = millis() + 100;
+      } else if (armed[s].state == 2) {
+        transmitter->setThrottle(s, 0);
+        armed[s].state++;
+        armed[s].next = millis() + 500;
+      } else {
+        armed[s].armed = true;
+        Serial.print("Craft ");
+        Serial.print(s);
+        Serial.println(" armed");
+      }
+    }
+  }
+}
+
