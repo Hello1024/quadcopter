@@ -47,22 +47,20 @@ void loop()
 {
   transmitter->loop();
   
-  if (Serial.available() >= 8) {
+  if (Serial.available() >= 10) {
+    uint16_t s = read16();  // craft number
     uint16_t a = read16();
     uint16_t e = read16();
     uint16_t t = read16();
     uint16_t r = read16();
 
-    for (int s = 0; s < transmitter->boundCraft(); ++s) {
-      if (armed[s].armed) {
-        transmitter->setAileron(s, a);
-        transmitter->setElevator(s, e);
-        transmitter->setThrottle(s, t);
-        transmitter->setRudder(s, r);
-      }
+    if (s < transmitter->boundCraft() && armed[s].armed) {
+      transmitter->setAileron(s, a);
+      transmitter->setElevator(s, e);
+      transmitter->setThrottle(s, t);
+      transmitter->setRudder(s, r);
+      Serial.print('+');  // ack
     }
-
-    Serial.print('+');  // ack
   }
 
   for (int s = 0; s < transmitter->boundCraft(); ++s) {

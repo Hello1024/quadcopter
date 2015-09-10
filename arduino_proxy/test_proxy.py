@@ -14,9 +14,10 @@ while True:
 
 print "Ready!"
 
-def send(throttle, rudder, elevator, aileron):
+def send(quad_num, throttle, rudder, elevator, aileron):
     echo()
-    print "t =", throttle, "r =", rudder, "e =", elevator, "a =", aileron
+    print "q = ", quad_num, "t =", throttle, "r =", rudder, "e =", elevator, "a =", aileron
+    send16(quad_num)
     send16(aileron)
     send16(elevator)
     send16(throttle)
@@ -48,11 +49,11 @@ MIN = 0
 MID = 500
 
 # ARM (Don't - now auto-armed by the proxy)
-#send(MIN, MID, MID, MID)
+#send(0, MIN, MID, MID, MID)
 #time.sleep(.1)
-#send(MAX, MID, MID, MID)
+#send(0, MAX, MID, MID, MID)
 #time.sleep(.1)
-#send(MIN, MID, MID, MID)
+#send(0, MIN, MID, MID, MID)
 #time.sleep(.1)
 
 # Wait for first craft to arm
@@ -64,9 +65,9 @@ MAXT = MAX/4
 
 # Run
 for t in range(MAXT):
-    send(t, MID, MID, MID)
+    send(0, t, MID, MID, MID)
 #    time.sleep(.01)
 
 for t in range(MAXT, 0, -1):
-    send(t, MID, MID, MID)
+    send(0, t, MID, MID, MID)
 #    time.sleep(.01)
