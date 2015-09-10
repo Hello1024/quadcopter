@@ -1,5 +1,6 @@
 #!/usr/bin/env qlua
--- th
+
+-- This module trains a vision convnet, saving the resulting network in a file.
 
 require 'nngraph'
 require 'camera'
