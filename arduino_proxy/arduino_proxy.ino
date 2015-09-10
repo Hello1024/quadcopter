@@ -11,7 +11,7 @@ struct {
 
 void setup()                   
 {
-  Serial.begin(115200);
+  Serial.begin(9600);
   Serial.println("Arduino alive");
   delay(1000);
     Serial.println("Arduino alive again");
@@ -25,7 +25,7 @@ void setup()
     transmitter->loop();
     // I cannot reliably bind more than 2.
     // If its a CX-10A and a CX-10 it appears the 10A has to be switched on first.
-    if (transmitter->boundCraft() > 1)
+    if (transmitter->boundCraft() > 0)
       break;
   }
   transmitter->stopBinding();
@@ -47,19 +47,20 @@ void loop()
 {
   transmitter->loop();
   
-  if (Serial.available() >= 10) {
+  while (Serial.available() >= 10) {
+    if (Serial.available() >= 15) {
+      // Sadly the HardwareSerial library neither has any way to detect lost data
+      // nor does it export RX_BUFFER_SIZE, which can be as low as 16.
+      // SoftwareSerial interferes with radio timing causing glitches.
+      while(1) Serial.print("Overflow");
+    }
     uint16_t s = read16();  // craft number
-    uint16_t a = read16();
-    uint16_t e = read16();
-    uint16_t t = read16();
-    uint16_t r = read16();
-
+ 
     if (s < transmitter->boundCraft() && armed[s].armed) {
-      transmitter->setAileron(s, a);
-      transmitter->setElevator(s, e);
-      transmitter->setThrottle(s, t);
-      transmitter->setRudder(s, r);
-      Serial.print('+');  // ack
+      transmitter->setAileron(s, read16());
+      transmitter->setElevator(s, read16());
+      transmitter->setThrottle(s, read16());
+      transmitter->setRudder(s, read16());
     }
   }
 
