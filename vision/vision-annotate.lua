@@ -2,6 +2,8 @@
 
 -- This program is a basic GUI to annotate training data, saving the resulting network in "trainingdata".
 
+-- click on the point to add a training point.  Click in the top left to say there is no point in this frame.
+
 -- It uses a modified version of 'ffmpeg' to fix errors on ubuntu.
 
 require 'camera'
