@@ -16,16 +16,17 @@ require 'cunn'
 -- and hover over the nodes in svg to see the filename:line_number info
 -- nodes will be annotated with local variable names even if debug mode is not enabled.
 nngraph.setDebug(true)
+torch.manualSeed(123)
 
 local function get_net(from, to)
 
     local input_x = nn.Identity()()
     local input_y = nn.Identity()()
     local joined = nn.JoinTable(1)({input_x, input_y})
-    
-    local L1 = nn.SpatialMaxPooling(7,7,1,1,3,3)(nn.ReLU()(nn.Dropout()(nn.SpatialConvolution(6, 4, 3, 3,1,1)(joined))))
-    local L2 = nn.SpatialMaxPooling(7,7,1,1,3,3)(nn.ReLU()(nn.Dropout()(nn.SpatialConvolution(4, 3, 3, 3,1,1)(L1))))
-    local L3 = nn.SpatialConvolution(3, 1, 3, 3,1,1)(L2)
+    --
+    local L1 = nn.SpatialAveragePooling(3,3,1,1,1,1)(nn.ReLU()(nn.Dropout()(nn.SpatialConvolution(6, 4, 3, 3,1,1,1,1)(joined))))
+    local L2 = nn.SpatialAveragePooling(3,3,1,1,1,1)(nn.ReLU()(nn.Dropout()(nn.SpatialConvolution(4, 3, 3, 3,1,1,1,1)(L1))))
+    local L3 =                                                          nn.SpatialConvolution(3, 1, 3, 3,1,1,1,1)(L2)
 
     return nn.gModule({input_x, input_y},{L3})
 end
@@ -54,19 +55,19 @@ window:show()
 while true do
   repeat 
     lastframe:copy(input)
-    frame = cam.current
+    frame = cam.current - 1
     input:copy(cam:forward())
   until (results[frame] and results[frame].x >= 0)
   
   local inp = {input, lastframe}
   local netout = net:forward(inp)
-  
 
   validoutput = torch.Tensor(netout:size()):squeeze():zero()
 
   image.gaussian(0, 0, 1, false, 0, 0, 0.02, 0.02, results[frame].x/640, results[frame].y/360, validoutput)
   
-  validoutput:add(-0.5)
+  validoutput:add(-0.03)
+  validoutput:mul(5)
   validoutput = validoutput:cuda()
   
   --trainer:train(dataset)
@@ -75,7 +76,7 @@ while true do
   
   local critback = criterion:backward(netout, validoutput)
   
-  net:backward(inp, critback)
+  local netbac = net:backward(inp, critback)
   
   net:updateParameters(0.1)
   net:zeroGradParameters()
@@ -87,9 +88,13 @@ while true do
   print("Out Min: " .. netout:min())
   
   -- netout:add(validoutput)
-  if frame > 100 then
-    dd = image.toDisplayTensor{input={netout:float(), validoutput:float()},padding=1, scaleeach=true}
+  if frame < 130 then
+    dd = image.toDisplayTensor{input={netout:clone():float(), validoutput:clone():float()},padding=1, scaleeach=true}
+    --dd = image.toDisplayTensor{input={netbac[1]:clone():float():mul(1000) + inp[2]:clone():float():mul(0.001) },padding=1, scaleeach=true}
     image.display{image=dd, win=painter}
+  end
+  if frame%110 == 0 then 
+    torch.save("net", net)
   end
   
   print(frame)
