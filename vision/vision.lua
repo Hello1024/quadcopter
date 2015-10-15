@@ -45,10 +45,12 @@ while true do
   input = cam:forward()
 
   
-  
   local inp = {input, lastframe}
   local netout = net:forward(inp)
   
+  for i=1,quad_state:size(1) do
+    quad_state[i][1][1] = quad_state[i][1][1] + netout[torch.floor(quad_state[i][2][1]*netout:size(1))+1][torch.floor(quad_state[i][3][1]*netout:size(2))+1]
+  end
   
   
   
