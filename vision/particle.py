@@ -5,6 +5,15 @@ import pickle
 import time
 import matplotlib.pyplot as plt
 
+class NextStatePredictor:
+  def __init__(self, statesize, controlsize):
+    self.statesize = statesize
+    randomsize = statesize
+    self.W = tf.Variable(tf.truncated_normal([statesize + controlsize + randomsize, statesize], stddev=0.1))
+
+  def GetNext(inp, control):
+    joined = tf.concat([inp, control, tf.truncated_normal(inp.get_shape(), stddev=0.1)], axis = [0])
+    return inp + tf.matmul(joined, self.W)
 
 
 class ParticleFilter:
@@ -18,6 +27,7 @@ class ParticleFilter:
     
     initial = tf.random_normal([self.particles, 10]) * self.initial_std + self.initial_bias
     self.state = tf.Variable(initial, trainable=False)
+    self.state_predictor = NextStatePredictor()
     pass
 
   def project(self):
@@ -42,7 +52,7 @@ class ParticleFilter:
     #return (tf.to_int64(tf.concatinate(1, [tf.clip_by_value(ys, 0, 359), tf.clip_by_value(ys, 0, 639)])), inp_onscreen)
     return (inp, inp_onscreen)
     
-  def UpdateProbs(self, inp):
+  def UpdateProbs(self, inp, control):
     """Update probabilities of each particle based on 2D matrix inp which is a 2D perspectiuve projection of the scene"""
 
     projection, onscreen = self.project()
@@ -65,7 +75,8 @@ class ParticleFilter:
     new_state = new_state + tf.random_normal([self.particles, 10]) * self.update_std
     # Todo:  permute state by adding noise.
 
-    
+    new_state = self.state_predictor.GetNext(new_state, control)
+
     return self.state.assign(new_state)
 
   def best_guess(self):
@@ -77,5 +88,6 @@ class ParticleFilter:
     indicies = tf.to_int64(tf.boolean_mask(indicies, onscreen))
     probs = tf.gather_nd(inp, indicies)
     return tf.sparse_tensor_to_dense(tf.sparse_reorder(tf.SparseTensor(indicies, probs, inp.get_shape())), validate_indices = False)
-    
+
+
 

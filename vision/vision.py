@@ -120,7 +120,7 @@ particlepreview = part.preview_like(tf.squeeze(model))
 model_update_op = part.UpdateProbs(tf.squeeze(model))
 position_op = part.best_guess()
 
-serial_connection = control.SerialConnection();
+#serial_connection = control.SerialConnection();
 
 sess = tf.Session();
 sess.run(tf.initialize_all_variables())
@@ -183,7 +183,7 @@ while(cap.isOpened()):
     controls = [remote_x,remote_y, pos_fut_est*0.5+0.3,0]
     print  controls
     eventlog[frame_number]['controls'] = controls
-    serial_connection.update_quad(0, controls)
+    #serial_connection.update_quad(0, controls)
 
     #cv2.imshow('frame',np.concatenate([vis(x) for x in [frame, result, correct_val]], 0))
     cv2.imshow('frame', np.concatenate([vis(x) for x in [frame, result, particlepreview_val]], 0))
