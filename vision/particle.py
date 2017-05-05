@@ -7,9 +7,28 @@ import matplotlib.pyplot as plt
 
 class NextStatePredictor:
   def __init__(self, statesize, controlsize):
+    statesize = 6
+    controlsize = 4
+    randomsize = 3
     self.statesize = statesize
     randomsize = statesize
-    self.W = tf.Variable(tf.truncated_normal([statesize + controlsize + randomsize, statesize], stddev=0.1))
+    initial = tf.constant([
+      #x y z dxdydz
+      [1,0,0,0,0,0],
+      [0,1,0,0,0,0],
+      [0,0,1,0,0,0],
+      [1,0,0,1,0,0],
+      [0,1,0,0,1,0],
+      [0,0,1,0,0,1],
+      [0,0,0,0,0,0],
+      [0,0,0,0,0,0],
+      [0,0,0,0,0,0],
+      [0,0,0,0,0,0],
+      [0,0,0,0.03,0,0],
+      [0,0,0,0,0.03,0],
+      [0,0,0,0,0,0.03]], dtype=tf.float32)
+
+    self.W = tf.Variable(initial+tf.truncated_normal([statesize + controlsize + randomsize, statesize], stddev=0.01))
 
   def GetNext(inp, control):
     joined = tf.concat([inp, control, tf.truncated_normal(inp.get_shape(), stddev=0.1)], axis = [0])
