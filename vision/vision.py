@@ -117,7 +117,8 @@ train_step = tf.train.AdamOptimizer(5e-4).minimize(loss)
 
 part = particle.ParticleFilter();
 particlepreview = part.preview_like(tf.squeeze(model))
-model_update_op = part.UpdateProbs(tf.squeeze(model))
+time_delta = tf.placeholder("float", [])
+model_update_op = part.UpdateProbs(tf.squeeze(model), time_delta)
 position_op = part.best_guess()
 
 serial_connection = control.SerialConnection();
@@ -145,8 +146,9 @@ while(cap.isOpened()):
     last = frame
     
     print "Loop time", time.time() - t_loop
+    t_delta = time.time() - t_loop
     t_loop = time.time()
-
+    
     ret, frame = cap.retrieve()
     event_vid.write(frame)
     eventlog[frame_number] = {}
@@ -171,7 +173,7 @@ while(cap.isOpened()):
     
     comp_frame = np.expand_dims(np.concatenate([frame, last], 2), axis=0)
     t0 = time.time()
-    result, loss_num, particlepreview_val, _, position_val = sess.run([model, loss, particlepreview, model_update_op, position_op], feed_dict={inp: comp_frame, correct: correct_val})
+    result, loss_num, particlepreview_val, _, position_val = sess.run([model, loss, particlepreview, model_update_op, position_op], feed_dict={inp: comp_frame, correct: correct_val, time_delta: t_delta})
     t1 = time.time()
     loss_avg = loss_avg*0.99 + loss_num*0.01
     

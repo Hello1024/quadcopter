@@ -42,7 +42,7 @@ class ParticleFilter:
     #return (tf.to_int64(tf.concatinate(1, [tf.clip_by_value(ys, 0, 359), tf.clip_by_value(ys, 0, 639)])), inp_onscreen)
     return (inp, inp_onscreen)
     
-  def UpdateProbs(self, inp):
+  def UpdateProbs(self, inp, time_delta):
     """Update probabilities of each particle based on 2D matrix inp which is a 2D perspectiuve projection of the scene"""
 
     projection, onscreen = self.project()
@@ -56,15 +56,14 @@ class ParticleFilter:
     new_state = tf.gather(self.state, new_state_indicies)
     
     # Add momentum
-    new_state = tf.concat(1, [new_state[:, 0:3] + new_state[:, 3:6], new_state[:, 3:10]])
+    new_state = tf.concat(1, [new_state[:, 0:3] + new_state[:, 3:6] * time_delta, new_state[:, 3:10]])
     
     # Add in particles for the "just come onscreen" case.
     new_state = tf.concat(0, [new_state, tf.random_normal([self.particles/10, 10]) * self.initial_std + self.initial_bias])
 
     
     new_state = new_state + tf.random_normal([self.particles, 10]) * self.update_std
-    # Todo:  permute state by adding noise.
-
+    
     
     return self.state.assign(new_state)
 
