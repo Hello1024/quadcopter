@@ -11,6 +11,7 @@ import particle
 import control
 import thread
 import os
+from tensorflow.python.client import timeline
 
 def weight_variable(shape):
   initial = tf.truncated_normal(shape, stddev=0.1)
@@ -56,7 +57,7 @@ def getModel(inp):
     b = bias_variable([2])
     final = conv2d(combined, W) + b
 
-    return final[:,:,:,0]
+    #return final[:,:,:,0]
     return tf.reshape(tf.nn.softmax(tf.reshape(final, [-1, 2]))[:,0], [shape[0], shape[1], shape[2]])
 
 
@@ -75,9 +76,18 @@ def click(event, x, y, flags, param):
 
 def remote_control(event, x, y, flags, param):
   global remote_x
-  remote_x = (x/320.0-0.5)/3
+  remote_x = (x/320.0-1)
   global remote_y
-  remote_y = (y/240.0-0.5)/3
+  remote_y = (y/240.0-1)
+  global controls_val
+  global serial_connection	
+
+  controls_val[0] = -remote_x
+  controls_val[1] = remote_y
+  
+  serial_connection.update_quad(0, controls_val)
+
+  
 
 
 def vis(inp):
@@ -92,8 +102,10 @@ cap = cv2.VideoCapture(0); #'testdata1.webm')
 
 def keep_capturing():
   global cap
+  global cv2
   while True:
     cap.grab()
+    cv2.waitKey(1)
 
 thread.start_new_thread( keep_capturing, () )
 
@@ -107,6 +119,8 @@ loss_avg = 0
 _, frame = cap.read()
 inp = tf.placeholder("float", [1, frame.shape[0],frame.shape[1],frame.shape[2]*2])
 correct = tf.placeholder("float", [1, frame.shape[0],frame.shape[1]])
+controls = tf.placeholder("float", [1, 4])
+
 model = getModel(inp)
 
 saver = tf.train.Saver()
@@ -118,7 +132,7 @@ train_step = tf.train.AdamOptimizer(5e-4).minimize(loss)
 part = particle.ParticleFilter();
 particlepreview = part.preview_like(tf.squeeze(model))
 time_delta = tf.placeholder("float", [])
-model_update_op = part.UpdateProbs(tf.squeeze(model), time_delta)
+model_update_op = part.UpdateProbs(tf.squeeze(model), controls)
 position_op = part.best_guess()
 
 serial_connection = control.SerialConnection();
@@ -137,10 +151,16 @@ event_vid = cv2.VideoWriter(eventlog['path'] + 'vid.avi', cv2.cv.CV_FOURCC('m','
 
 print event_vid.isOpened()
 
+options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
+run_metadata = tf.RunMetadata()
+
+    
+
 t_loop = 0
 remote_x = 0
 remote_y = 0
-
+controls_val = [0,0,0,0]
+    
 while(cap.isOpened()):
     frame_number = frame_number + 1
     last = frame
@@ -173,7 +193,7 @@ while(cap.isOpened()):
     
     comp_frame = np.expand_dims(np.concatenate([frame, last], 2), axis=0)
     t0 = time.time()
-    result, loss_num, particlepreview_val, _, position_val = sess.run([model, loss, particlepreview, model_update_op, position_op], feed_dict={inp: comp_frame, correct: correct_val, time_delta: t_delta})
+    result, loss_num, particlepreview_val, _, position_val = sess.run([model, loss, particlepreview, model_update_op, position_op], feed_dict={inp: comp_frame, correct: correct_val, time_delta: t_delta, controls: [controls_val]}, options=options, run_metadata=run_metadata)
     t1 = time.time()
     loss_avg = loss_avg*0.99 + loss_num*0.01
     
@@ -182,13 +202,22 @@ while(cap.isOpened()):
     # Estimate of position in 3 frames.
     pos_fut_est = position_val[0] + position_val[3]*4
     
-    controls = [remote_x,remote_y, pos_fut_est*0.5+0.3,0]
-    print  controls
-    eventlog[frame_number]['controls'] = controls
-    serial_connection.update_quad(0, controls)
+    cv2.waitKey(1)
+
+    controls_val = [-remote_x,remote_y, pos_fut_est*0.5+0.5,0]
+    print  controls_val
+    eventlog[frame_number]['controls'] = controls_val
+    serial_connection.update_quad(0, controls_val)
 
     #cv2.imshow('frame',np.concatenate([vis(x) for x in [frame, result, correct_val]], 0))
-    cv2.imshow('frame', np.concatenate([vis(x) for x in [frame, result, particlepreview_val]], 0))
+    cv2.imshow('frame', np.concatenate([vis(x) for x in [result, particlepreview_val]], 0))
+    
+    # Create the Timeline object, and write it to a json file
+    fetched_timeline = timeline.Timeline(run_metadata.step_stats)
+    chrome_trace = fetched_timeline.generate_chrome_trace_format()
+    with open('timeline_01.json', 'w') as f:
+        f.write(chrome_trace)
+    
     #plt.show(block=False)
     #plt.pause(0.001)
 
@@ -197,8 +226,9 @@ while(cap.isOpened()):
     #    saver.save(sess, 'my-model'+str(loss_avg))
         
     #while nextframe==0 and frame_number not in annotations:
-    cv2.waitKey(1)
     pickle.dump( eventlog, open( eventlog['path'] + "log", "wb" ) )
+    
+    cv2.waitKey(1)
 
     
 

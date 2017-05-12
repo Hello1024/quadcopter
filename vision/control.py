@@ -8,6 +8,8 @@ class SerialConnection:
   def __init__(self):
     print "Serial Connecting"
     self.ser = serial.Serial('/dev/ttyUSB0', 9600)
+    # Passthrough all messages/errors from the arduino and lower level
+    # hardware to the console.
     while True:
       a = self.ser.read(1);
       sys.stdout.write(a)
